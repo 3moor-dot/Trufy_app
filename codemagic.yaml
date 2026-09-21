@@ -1,0 +1,47 @@
+workflows:
+  ios-release:
+    name: iOS App Store build
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    integrations:
+      # Must match the name you gave the App Store Connect API key
+      # in Codemagic (Teams > Integrations > App Store Connect).
+      app_store_connect: codemagic
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        # Must match the bundle ID in Xcode and App Store Connect
+        bundle_identifier: com.trufycompany.trufyapp
+
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+
+      - name: Install CocoaPods
+        script: |
+          cd ios
+          pod install
+
+      - name: Apply signing profiles to Xcode project
+        script: xcode-project use-profiles
+
+      - name: Build signed IPA
+        script: |
+          flutter build ipa --release \
+            --build-name=1.0.0 \
+            --build-number=$PROJECT_BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
